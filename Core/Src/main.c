@@ -65,11 +65,27 @@ static void MX_USART1_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 #define MAX_LED 100
+//uint16_t read_adc()
+//{
+//uint16_t ADC_val;
+//HAL_ADC_Start(&hadc);
+//while(HAL_ADC_PollForConversion(&hadc,100) != 0);
+//ADC_val = HAL_ADC_GetValue(&hadc);
+//HAL_ADC_Stop(&hadc);
+//return ADC_val;
+//}
 
-
+// Variables ...........................................
 uint8_t LED_Data[MAX_LED][4];
-
 int datasentflag=0;
+
+//Shift register variables
+uint8_t dig0, dig1, dig2;
+uint8_t dig0_map[10] = {0x3F, 0x0C, 0x5B, 0x5E, 0x6C, 0x76, 0xF7, 0x1C, 0xFF, 0xFE};
+uint8_t dig1_map[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0xFF, 0x7B};
+uint8_t dig2_map[10] = {0x7F, 0x30, 0xEC, 0xF8, 0xB2, 0xDA, 0xDE, 0x70, 0xFF, 0xFA};
+
+// End of Variables ....................................
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
@@ -120,7 +136,42 @@ void WS2812_Send (void)
 	while (!datasentflag);
 	datasentflag = 0;
 }
+void DisplayNumber(uint16_t value)
+{
 
+	  // Reset Shift register
+	  HAL_GPIO_WritePin(MR_GPIO_Port, MR_Pin, 0);
+	  HAL_Delay(1);
+	  HAL_GPIO_WritePin(MR_GPIO_Port, MR_Pin, 1);
+      //////
+
+      ///// Extraction and placement on digits
+	  uint8_t d0 = value % 10;          //one
+	  uint8_t d1 = (value / 10) % 10;  // Villagers
+	  uint8_t d2 = value / 100;       //  Centuries
+	  uint8_t dig0 = dig0_map[d2];
+	  uint8_t dig1 = dig1_map[d1];
+	  uint8_t dig2 = dig2_map[d0];
+
+      ///Combination of three numbers
+	  uint32_t digs = dig0 + (dig1 << 8) + (dig2 << 16);
+
+
+	  // insert digits to shift register
+	  for(int i = 0; i < 24; i++)
+	  {
+		  HAL_GPIO_WritePin(SER_GPIO_Port, SER_Pin, ((digs >> i)&0x01));
+		  __NOP();
+		  HAL_GPIO_WritePin(CLK_GPIO_Port, CLK_Pin, 1);
+		  __NOP();
+		  HAL_GPIO_WritePin(CLK_GPIO_Port, CLK_Pin, 0);
+	  }
+	  HAL_GPIO_WritePin(Latch_GPIO_Port, Latch_Pin, 1);
+	  __NOP();
+	  HAL_GPIO_WritePin(Latch_GPIO_Port, Latch_Pin, 0);
+
+
+}
 
 /* USER CODE END 0 */
 
@@ -159,29 +210,34 @@ int main(void)
   /* USER CODE BEGIN 2 */
     int p;
     int hit = 0;
+
+    for(int i = 0; i < 6; i++)
+    {
+    	HAL_GPIO_TogglePin(MCU_LED_GPIO_Port, MCU_LED_Pin);
+    	HAL_Delay(50);
+    }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+    dig2 = 0x01;
+    dig1 = 0x00;
+    dig0 = 0x00;
+    int num = 0;
+    uint32_t delay_tim;
+
   while (1)
   {
-	 HAL_GPIO_TogglePin(MCU_LED_GPIO_Port, MCU_LED_Pin);
-	 HAL_Delay(500);
-	     hit=1;
-	 if (hit == 1) {  // وقتی فلگ یک شد
-	     for (int i = 0; i < 15; i++) {
-	         if (i < 5) {
-	             Set_LED(i, 0, 255, 0);   // 3 تای اول قرمز (R=255, G=0, B=0)
-	         } else if (i < 10) {
-	             Set_LED(i, 255, 0, 255); // 3 تای وسط زرد (R=255, G=255, B=0)
-	         } else {
-	             Set_LED(15, 0, 0, 255);   // 3 تای آخر سبز (R=0, G=0, B=255)
-	         }
-	         WS2812_Send();   // آپدیت ریسه
-	         HAL_Delay(200);  // دیلی 200 میلی‌ثانیه
-	     }
-	 }
-//	 p+1;
+
+	  DisplayNumber(num);
+
+	  HAL_Delay(50);
+	  num++;
+
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -257,7 +313,7 @@ static void MX_ADC2_Init(void)
   */
   hadc2.Instance = ADC2;
   hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc2.Init.ContinuousConvMode = DISABLE;
+  hadc2.Init.ContinuousConvMode = ENABLE;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
   hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
@@ -400,7 +456,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(MCU_LED_GPIO_Port, MCU_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, MR_Pin|CLK_Pin|Latch_Pin|SER_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : MCU_key_Pin */
   GPIO_InitStruct.Pin = MCU_key_Pin;
@@ -415,8 +471,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(MCU_LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA9 PA10 PA11 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11;
+  /*Configure GPIO pins : MR_Pin CLK_Pin Latch_Pin SER_Pin */
+  GPIO_InitStruct.Pin = MR_Pin|CLK_Pin|Latch_Pin|SER_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

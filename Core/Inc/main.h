@@ -63,6 +63,14 @@ void Error_Handler(void);
 #define MCU_key_GPIO_Port GPIOB
 #define MCU_LED_Pin GPIO_PIN_15
 #define MCU_LED_GPIO_Port GPIOB
+#define MR_Pin GPIO_PIN_8
+#define MR_GPIO_Port GPIOA
+#define CLK_Pin GPIO_PIN_9
+#define CLK_GPIO_Port GPIOA
+#define Latch_Pin GPIO_PIN_10
+#define Latch_GPIO_Port GPIOA
+#define SER_Pin GPIO_PIN_11
+#define SER_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
