@@ -158,6 +158,7 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
     int p;
+    int hit = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -166,12 +167,19 @@ int main(void)
   {
 	 HAL_GPIO_TogglePin(MCU_LED_GPIO_Port, MCU_LED_Pin);
 	 HAL_Delay(500);
-	 for(int p=0;p<12;p++)
-	 {
-	 Set_LED(p, 0, 255, 0);
-		WS2812_Send();
-		HAL_Delay(50);
-
+	     hit=1;
+	 if (hit == 1) {  // وقتی فلگ یک شد
+	     for (int i = 0; i < 15; i++) {
+	         if (i < 5) {
+	             Set_LED(i, 0, 255, 0);   // 3 تای اول قرمز (R=255, G=0, B=0)
+	         } else if (i < 10) {
+	             Set_LED(i, 255, 0, 255); // 3 تای وسط زرد (R=255, G=255, B=0)
+	         } else {
+	             Set_LED(15, 0, 0, 255);   // 3 تای آخر سبز (R=0, G=0, B=255)
+	         }
+	         WS2812_Send();   // آپدیت ریسه
+	         HAL_Delay(200);  // دیلی 200 میلی‌ثانیه
+	     }
 	 }
 //	 p+1;
     /* USER CODE END WHILE */
@@ -393,6 +401,12 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : MCU_key_Pin */
+  GPIO_InitStruct.Pin = MCU_key_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(MCU_key_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : MCU_LED_Pin */
   GPIO_InitStruct.Pin = MCU_LED_Pin;
