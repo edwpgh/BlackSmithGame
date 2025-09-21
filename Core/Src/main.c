@@ -84,9 +84,10 @@ int datasentflag=0;
 
 //Shift register variables
 uint8_t dig0, dig1, dig2;
-uint8_t dig0_map[10] = {0x3F, 0x0C, 0x5B, 0x5E, 0x6C, 0x76, 0xF7, 0x1C, 0xFF, 0xFE};
-uint8_t dig1_map[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0xFF, 0x7B};
-uint8_t dig2_map[10] = {0x7F, 0x30, 0xEC, 0xF8, 0xB2, 0xDA, 0xDE, 0x70, 0xFF, 0xFA};
+uint8_t dig0_map[11] = {0x3F, 0x0C, 0x5B, 0x5E, 0x6C, 0x76, 0xF7, 0x1C, 0xFF, 0xFE, 0x00};
+uint8_t dig1_map[11] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0xFF, 0x7B, 0x00};
+uint8_t dig2_map[11] = {0x7F, 0x30, 0xEC, 0xF8, 0xB2, 0xDA, 0xDE, 0x70, 0xFF, 0xFA, 0x00};
+#define SEG_OFF	10
 
 // End of Variables ....................................
 
@@ -141,6 +142,7 @@ void WS2812_Send (void)
 }
 void DisplayNumber(uint16_t value)
 {
+	uint8_t d0, d1, d2, dig0, dig1, dig2;
 
 	  // Reset Shift register
 	  HAL_GPIO_WritePin(MR_GPIO_Port, MR_Pin, 0);
@@ -149,12 +151,21 @@ void DisplayNumber(uint16_t value)
       //////
 
       ///// Extraction and placement on digits
-	  uint8_t d0 = value % 10;          //one
-	  uint8_t d1 = (value / 10) % 10;  // Villagers
-	  uint8_t d2 = value / 100;       //  Centuries
-	  uint8_t dig0 = dig0_map[d2];
-	  uint8_t dig1 = dig1_map[d1];
-	  uint8_t dig2 = dig2_map[d0];
+	  if(value != SEG_OFF)
+	  {
+		  d0 = value % 10;          //one
+		  d1 = (value / 10) % 10;  // Villagers
+		  d2 = value / 100;       //  Centuries
+		  dig0 = dig0_map[d2];
+		  dig1 = dig1_map[d1];
+		  dig2 = dig2_map[d0];
+	  }
+	  else // 11 means off
+	  {
+		  dig0 = dig0_map[10];
+		  dig1 = dig1_map[10];
+		  dig2 = dig2_map[10];
+	  }
 
       ///Combination of three numbers
 	  uint32_t digs = dig0 + (dig1 << 8) + (dig2 << 16);
@@ -174,6 +185,44 @@ void DisplayNumber(uint16_t value)
 	  HAL_GPIO_WritePin(Latch_GPIO_Port, Latch_Pin, 0);
 
 
+}
+
+void clear_Segs()
+{
+
+}
+
+void show_effect_countup_blocking(int target) {
+    if (target <= 0) {          // 1: اگر هدف صفر یا منفی بود، صفر نشون بده و برگرد
+    	DisplayNumber(0);
+        return;
+    }
+
+    int steps = 40;             // 2: تعداد فریم‌ها / مراحل انیمیشن (قابل تنظیم)
+    int base_delay = 4;         // 3: تأخیر پایه (ms) — سرعت اولیه (کم باشه یعنی سریع)
+    int slow_max = 180;         // 4: بیشترین تأخیری که در انتها اضافه میشه (ms)
+
+    for (int i = 1; i <= steps; i++) {
+        int val = (i * target) / steps;   // 5: مقدار فعلی که نمایش میدیم (خطی بین 0 تا target)
+        DisplayNumber(val);                // 6: نمایش مقدار روی سون‌سگمنت
+
+        // 7: محاسبه تأخیر: هر چه val بیشتر (نزدیکتر به target) -> delay بزرگتر -> حرکت کندتر
+        int delay_ms = base_delay + (val * slow_max) / ( (target>0) ? target : 1 );
+
+        HAL_Delay(delay_ms);              // 8: صبر برای افکت (مراقب باش این بلاک‌کنه برنامه)
+    }
+
+    DisplayNumber(target); // 9: در آخر دقیقاً عدد هدف رو نمایش بده
+}
+
+void blink_on_target(int target) {
+    for (int i = 0; i < 3; i++) {
+    	DisplayNumber(target);   // روشن
+        HAL_Delay(500);         // 150ms
+        DisplayNumber(SEG_OFF);           // خاموش
+        HAL_Delay(500);
+    }
+    DisplayNumber(target);       // در نهایت روشن نگه دار
 }
 
 /* USER CODE END 0 */
@@ -248,7 +297,10 @@ int main(void)
 	             int display_val = (peak * 999) / ADC_MAX;
 	             if (display_val > 999) display_val = 999;
 
-	             DisplayNumber(display_val); // این تابع رو با کد خودت جایگزین کن
+
+	             show_effect_countup_blocking(display_val); //
+	             blink_on_target(display_val);
+
 	         }
 	      ADC_Last = ADC_Now; // ذخیره برای بار بعد
 	      HAL_ADC_Stop(&hadc2);
