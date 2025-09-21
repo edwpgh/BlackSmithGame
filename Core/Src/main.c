@@ -46,9 +46,6 @@ ADC_HandleTypeDef hadc2;
 TIM_HandleTypeDef htim2;
 DMA_HandleTypeDef hdma_tim2_ch1;
 
-UART_HandleTypeDef huart1;
-UART_HandleTypeDef huart2;
-
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -59,8 +56,6 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_USART1_UART_Init(void);
-static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -193,26 +188,26 @@ void clear_Segs()
 }
 
 void show_effect_countup_blocking(int target) {
-    if (target <= 0) {          // 1: اگر هدف صفر یا منفی بود، صفر نشون بده و برگرد
+    if (target <= 0) {          // 1: اگر هد�? ص�?ر یا من�?ی بود، ص�?ر نشون بده و برگرد
     	DisplayNumber(0);
         return;
     }
 
-    int steps = 40;             // 2: تعداد فریم‌ها / مراحل انیمیشن (قابل تنظیم)
+    int steps = 40;             // 2: تعداد �?ریم‌ها / مراحل انیمیشن (قابل تنظیم)
     int base_delay = 4;         // 3: تأخیر پایه (ms) — سرعت اولیه (کم باشه یعنی سریع)
-    int slow_max = 180;         // 4: بیشترین تأخیری که در انتها اضافه میشه (ms)
+    int slow_max = 180;         // 4: بیشترین تأخیری که در انتها اضا�?ه میشه (ms)
 
     for (int i = 1; i <= steps; i++) {
-        int val = (i * target) / steps;   // 5: مقدار فعلی که نمایش میدیم (خطی بین 0 تا target)
+        int val = (i * target) / steps;   // 5: مقدار �?علی که نمایش میدیم (خطی بین 0 تا target)
         DisplayNumber(val);                // 6: نمایش مقدار روی سون‌سگمنت
 
         // 7: محاسبه تأخیر: هر چه val بیشتر (نزدیکتر به target) -> delay بزرگتر -> حرکت کندتر
         int delay_ms = base_delay + (val * slow_max) / ( (target>0) ? target : 1 );
 
-        HAL_Delay(delay_ms);              // 8: صبر برای افکت (مراقب باش این بلاک‌کنه برنامه)
+        HAL_Delay(delay_ms);              // 8: صبر برای ا�?کت (مراقب باش این بلاک‌کنه برنامه)
     }
 
-    DisplayNumber(target); // 9: در آخر دقیقاً عدد هدف رو نمایش بده
+    DisplayNumber(target); // 9: در آخر دقیقاً عدد هد�? رو نمایش بده
 }
 
 void blink_on_target(int target) {
@@ -221,6 +216,8 @@ void blink_on_target(int target) {
         HAL_Delay(500);         // 150ms
         DisplayNumber(SEG_OFF);           // خاموش
         HAL_Delay(500);
+
+
     }
     DisplayNumber(target);       // در نهایت روشن نگه دار
 }
@@ -258,12 +255,8 @@ int main(void)
   MX_DMA_Init();
   MX_ADC2_Init();
   MX_TIM2_Init();
-  MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-    int p;
-    int hit = 0;
-    char msg[30];
+
 
     for(int i = 0; i < 6; i++)
     {
@@ -286,6 +279,8 @@ int main(void)
 
   while (1)
   {
+	       Set_LED(2 , 255, 255, 255);
+	       WS2812_Send();
 	  ADC_Now = read_adc();
 	  int diff = ADC_Now - ADC_Last;
 
@@ -429,6 +424,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
 
@@ -441,6 +437,15 @@ static void MX_TIM2_Init(void)
   htim2.Init.Period = 89;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -463,72 +468,6 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
-
-}
-
-/**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
 
 }
 
@@ -589,6 +528,21 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure peripheral I/O remapping */
+  __HAL_AFIO_REMAP_USART1_ENABLE();
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
