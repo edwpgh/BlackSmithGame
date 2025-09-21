@@ -229,15 +229,33 @@ int main(void)
     dig2 = 0x01;
     dig1 = 0x00;
     dig0 = 0x00;
-    int num = 0;
-    int ADC_T;
-    int asd=254;
+    int THRESHOLD = 100;
+    int ADC_Now=0;
+    int ADC_Last=0;
+    int peak;
+    int ADC_MAX = 900;
+
   while (1)
   {
-	  ADC_T = read_adc();
-	  DisplayNumber(ADC_T);
-//
-	  HAL_Delay(50);
+	  ADC_Now = read_adc();
+	  int diff = ADC_Now - ADC_Last;
+
+	  if (diff > THRESHOLD) {
+	             // ضربه شناسایی شد → ذخیره پیک
+	             peak = diff;
+
+	             // نرمال‌سازی ۰..۹۹۹ برای سون سگمنت
+	             int display_val = (peak * 999) / ADC_MAX;
+	             if (display_val > 999) display_val = 999;
+
+	             DisplayNumber(display_val); // این تابع رو با کد خودت جایگزین کن
+	         }
+	      ADC_Last = ADC_Now; // ذخیره برای بار بعد
+	      HAL_ADC_Stop(&hadc2);
+	      HAL_Delay(1);
+
+
+
 //	  num++;
 
 
