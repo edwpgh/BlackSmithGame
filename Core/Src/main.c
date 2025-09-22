@@ -21,8 +21,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include <stdio.h>
-//#include <string.h>
+#include <stdio.h>
+#include <string.h>
+#include "DFPLAYER_MINI.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,6 +48,8 @@ ADC_HandleTypeDef hadc2;
 TIM_HandleTypeDef htim2;
 DMA_HandleTypeDef hdma_tim2_ch1;
 
+UART_HandleTypeDef huart1;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -56,21 +60,27 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
+void Update_LEDs(int score);
+void DF_Choose(uint8_t);
+//void DF_Init (uint8_t );
+
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 #define MAX_LED 100
+#define LED_COUNT 20
 uint16_t read_adc()
 {
-uint16_t ADC_val;
-HAL_ADC_Start(&hadc2);
-while(HAL_ADC_PollForConversion(&hadc2,100) != 0);
-ADC_val = HAL_ADC_GetValue(&hadc2);
-HAL_ADC_Stop(&hadc2);
-return ADC_val;
+	uint16_t ADC_val;
+	HAL_ADC_Start(&hadc2);
+	while(HAL_ADC_PollForConversion(&hadc2,100) != 0);
+	ADC_val = HAL_ADC_GetValue(&hadc2);
+	HAL_ADC_Stop(&hadc2);
+	return ADC_val;
 }
 
 // Variables ...........................................
@@ -196,30 +206,62 @@ void show_effect_countup_blocking(int target) {
     int steps = 40;             // 2: تعداد �?ریم‌ها / مراحل انیمیشن (قابل تنظیم)
     int base_delay = 4;         // 3: تأخیر پایه (ms) — سرعت اولیه (کم باشه یعنی سریع)
     int slow_max = 180;         // 4: بیشترین تأخیری که در انتها اضا�?ه میشه (ms)
-
+    HAL_Delay(1000);
+    DF_Choose(4);
     for (int i = 1; i <= steps; i++) {
         int val = (i * target) / steps;   // 5: مقدار �?علی که نمایش میدیم (خطی بین 0 تا target)
         DisplayNumber(val);                // 6: نمایش مقدار روی سون‌سگمنت
 
         // 7: محاسبه تأخیر: هر چه val بیشتر (نزدیکتر به target) -> delay بزرگتر -> حرکت کندتر
         int delay_ms = base_delay + (val * slow_max) / ( (target>0) ? target : 1 );
+        Update_LEDs(val);
+        HAL_Delay(delay_ms);
 
-        HAL_Delay(delay_ms);              // 8: صبر برای ا�?کت (مراقب باش این بلاک‌کنه برنامه)
+                    // 8: صبر برای ا�?کت (مراقب باش این بلاک‌کنه برنامه)
     }
 
     DisplayNumber(target); // 9: در آخر دقیقاً عدد هد�? رو نمایش بده
 }
 
 void blink_on_target(int target) {
-    for (int i = 0; i < 3; i++) {
-    	DisplayNumber(target);   // روشن
-        HAL_Delay(500);         // 150ms
-        DisplayNumber(SEG_OFF);           // خاموش
-        HAL_Delay(500);
+	DF_Choose(1);
+	for (int i = 0; i < 3; i++) {
+		DisplayNumber(target);   // روشن
+		HAL_Delay(500);         // 150ms
+		DisplayNumber(SEG_OFF);           // خاموش
+		HAL_Delay(500);
+		DisplayNumber(target);   // روشن
+		HAL_Delay(500);         // 150ms
+		DisplayNumber(SEG_OFF);           // خاموش
+		HAL_Delay(500);
+		DisplayNumber(target);   // روشن
+		HAL_Delay(500);         // 150ms
+		DisplayNumber(SEG_OFF);           // خاموش
+		HAL_Delay(500);
 
 
     }
     DisplayNumber(target);       // در نهایت روشن نگه دار
+
+}
+
+void Update_LEDs(int score)
+{
+    // چندتا LED باید روشن بشن؟
+    uint8_t leds_to_light = score / 50;
+    if (leds_to_light > LED_COUNT) leds_to_light = LED_COUNT;
+
+    // همه رو اول خاموش کن
+    for (int i = 0; i < LED_COUNT; i++) {
+        Set_LED(i, 0, 0, 0);
+    }
+
+    // بعد تا همون تعداد روشن کن
+    for (int i = 0; i < leds_to_light; i++) {
+        Set_LED(i, 255, 0, 125);  // سبز روشن
+    }
+
+    WS2812_Send();  // دیتا ب�?رست
 }
 
 /* USER CODE END 0 */
@@ -255,6 +297,7 @@ int main(void)
   MX_DMA_Init();
   MX_ADC2_Init();
   MX_TIM2_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -276,11 +319,12 @@ int main(void)
     int ADC_Last=0;
     int peak;
     int ADC_MAX = 900;
+    DF_Init(50);
+    HAL_Delay(100);
 
   while (1)
   {
-	       Set_LED(2 , 255, 255, 255);
-	       WS2812_Send();
+
 	  ADC_Now = read_adc();
 	  int diff = ADC_Now - ADC_Last;
 
@@ -298,6 +342,7 @@ int main(void)
 
 	         }
 	      ADC_Last = ADC_Now; // ذخیره برای بار بعد
+
 	      HAL_ADC_Stop(&hadc2);
 	      HAL_Delay(1);
 
@@ -472,6 +517,39 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
   * Enable DMA controller clock
   */
 static void MX_DMA_Init(void)
@@ -528,21 +606,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PB6 */
-  GPIO_InitStruct.Pin = GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PB7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_7;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure peripheral I/O remapping */
-  __HAL_AFIO_REMAP_USART1_ENABLE();
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
