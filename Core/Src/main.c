@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "DFPLAYER_MINI.h"
+#include <FLASH_PAGE.h>
 
 /* USER CODE END Includes */
 
@@ -86,7 +87,8 @@ uint16_t read_adc()
 // Variables ...........................................
 uint8_t LED_Data[MAX_LED][4];
 int datasentflag=0;
-
+int comp;
+uint32_t tops;
 //Shift register variables
 uint8_t dig0, dig1, dig2;
 uint8_t dig0_map[11] = {0x3F, 0x0C, 0x5B, 0x5E, 0x6C, 0x76, 0xF7, 0x1C, 0xFF, 0xFE, 0x00};
@@ -223,8 +225,17 @@ void show_effect_countup_blocking(int target) {
     DisplayNumber(target); // 9: در آخر دقیقاً عدد هد�? رو نمایش بده
 }
 
-void blink_on_target(int target) {
-	DF_Choose(1);
+void blink_on_target(uint32_t target) {
+	    Flash_Read_Data (0x08007000, &tops , 1 );
+	    if( tops < target)
+	     {
+	    	DF_Choose(1);
+	    	Flash_Write_Data (0x08007000,&target, 1);
+	     }
+	    else
+	    {
+	    	DF_Choose(2);
+	    }
 	for (int i = 0; i < 3; i++) {
 		DisplayNumber(target);   // روشن
 		HAL_Delay(500);         // 150ms
@@ -242,6 +253,8 @@ void blink_on_target(int target) {
 
     }
     DisplayNumber(target);       // در نهایت روشن نگه دار
+    //Flash_Write_Data (0x08007000,&tops, 1);
+
 
 }
 
@@ -300,7 +313,7 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-
+    DisplayNumber(SEG_OFF);
     for(int i = 0; i < 6; i++)
     {
     	HAL_GPIO_TogglePin(MCU_LED_GPIO_Port, MCU_LED_Pin);
@@ -322,29 +335,32 @@ int main(void)
     DF_Init(50);
     HAL_Delay(100);
 
+    // Just for starting bug
+    ADC_Last = read_adc();
+
   while (1)
   {
 
 	  ADC_Now = read_adc();
 	  int diff = ADC_Now - ADC_Last;
 
-	  if (diff > THRESHOLD) {
-	             // ضربه شناسایی شد → ذخیره پیک
-	             peak = diff;
+	  if (diff > THRESHOLD)
+	  {
+		  // ضربه شناسایی شد → ذخیره پیک
+		  peak = diff;
 
-	             // نرمال‌سازی ۰..۹۹۹ برای سون سگمنت
-	             int display_val = (peak * 999) / ADC_MAX;
-	             if (display_val > 999) display_val = 999;
+		  // نرمال‌سازی ۰..۹۹۹ برای سون سگمنت
+		  int display_val = (peak * 999) / ADC_MAX;
+		  if (display_val > 999) display_val = 999;
 
 
-	             show_effect_countup_blocking(display_val); //
-	             blink_on_target(display_val);
+		  show_effect_countup_blocking(display_val); //
+		  blink_on_target(display_val);
 
-	         }
-	      ADC_Last = ADC_Now; // ذخیره برای بار بعد
-
-	      HAL_ADC_Stop(&hadc2);
-	      HAL_Delay(1);
+	  }
+	  ADC_Last = ADC_Now; // ذخیره برای بار بعد
+	  HAL_ADC_Stop(&hadc2);
+	  HAL_Delay(1);
 
 
 
