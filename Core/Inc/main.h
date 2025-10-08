@@ -59,6 +59,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SPI1_CS_Pin GPIO_PIN_0
+#define SPI1_CS_GPIO_Port GPIOB
 #define MCU_key_Pin GPIO_PIN_12
 #define MCU_key_GPIO_Port GPIOB
 #define MCU_LED_Pin GPIO_PIN_15
