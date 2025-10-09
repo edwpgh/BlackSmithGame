@@ -9,6 +9,7 @@
 #define INC_ADXL375_H_
 
 #include "stm32f1xx_hal.h" /* Needed for SPI */
+#include "main.h"
 
 /*
  * DEFINES

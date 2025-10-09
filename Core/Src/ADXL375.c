@@ -128,11 +128,11 @@ HAL_StatusTypeDef ReadData(ADXL375 *dev, uint8_t address, uint8_t *data, uint16_
 
 void ToggleCSHigh()
 {
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_SET);
 }
 
 void ToggleCSLow()
 {
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_RESET);
 }
 

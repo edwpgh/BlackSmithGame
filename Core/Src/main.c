@@ -56,6 +56,7 @@ DMA_HandleTypeDef hdma_tim2_ch1;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+float y = 0;
 
 /* USER CODE END PV */
 
@@ -315,13 +316,17 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
+    ADXL375 dev;
+    int errors = 0;
+    errors = ADXL375_Initialise(&dev, &hspi1);
+
+
 	DisplayNumber(SEG_OFF); ////// For_Start
 	for(int i = 0; i < 6; i++) ////// For_debugging_and_error
 	{
 		HAL_GPIO_TogglePin(MCU_LED_GPIO_Port, MCU_LED_Pin);
 		HAL_Delay(50);
 	}
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -342,28 +347,38 @@ int main(void)
 
 	while (1)
 	{
+		HAL_StatusTypeDef status;
+		status = ADXL375_ReadAcceleration(&dev);
+			  if (status == HAL_OK)
+			  ADXL375_CleanRawValues(&dev);
+			  y = dev.accData[1];
+              float smoothY = 0 ;
+              float alpha = 0.1;
+              smoothY = alpha * dev.accData[1] + (1 - alpha) * smoothY;
+			  DisplayNumber(smoothY);
+			  HAL_Delay(101);
 		//////Hit_detection_commands
-		ADC_Now = read_adc();
-		int diff = ADC_Now - ADC_Last;
-
-		if (diff > THRESHOLD)
-		{
-
-			peak = diff;
-
-
-			int display_val = (peak * 999) / ADC_MAX;
-			if (display_val > 999) display_val = 999;
-
-
-			show_effect_countup_blocking(display_val); //
-			blink_on_target(display_val);
-
-		}
-		ADC_Last = ADC_Now;
-		HAL_ADC_Stop(&hadc2);
-		HAL_Delay(1);
-
+//		ADC_Now = read_adc();
+//		int diff = ADC_Now - ADC_Last;
+//
+//		if (diff > THRESHOLD)
+//		{
+//
+//			peak = diff;
+//
+//
+//			int display_val = (peak * 999) / ADC_MAX;
+//			if (display_val > 999) display_val = 999;
+//
+//
+//			show_effect_countup_blocking(display_val); //
+//			blink_on_target(display_val);
+//
+//		}
+//		ADC_Last = ADC_Now;
+//		HAL_ADC_Stop(&hadc2);
+//		HAL_Delay(1);
+//
 
 
 		//	  num++;
@@ -496,12 +511,12 @@ static void MX_SPI1_Init(void)
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_ENABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
   hspi1.Init.CRCPolynomial = 10;
   if (HAL_SPI_Init(&hspi1) != HAL_OK)
   {
