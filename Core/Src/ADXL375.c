@@ -89,6 +89,8 @@ void ADXL375_CleanRawValues(ADXL375 *dev)
 }
 
 
+
+
 /*
  * LOW-LEVEL FUNCTIONS
  */
@@ -135,4 +137,27 @@ void ToggleCSLow()
 {
 	HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_RESET);
 }
+////// shock
+void ADXL375_EnableShockDetection(ADXL375 *dev, uint8_t axes_mask, uint8_t thresh, uint8_t dur)
+{
+	WriteData(dev, ADXL375_THRESH_SHOCK, thresh, 1);
+		WriteData(dev, ADXL375_SHOCK_DURATION, dur, 1);
+		WriteData(dev, ADXL375_SHOCK_AXES, axes_mask, 1);
+		WriteData(dev, ADXL375_INT_ENABLE, 0x40, 1);
+}
 
+_Bool ADXL375_CheckShock(ADXL375 *dev, uint8_t *out_act_shock_status)
+{
+	uint8_t int_source;
+	if(ReadData(dev, ADXL375_INT_SOURCE, &int_source, 1) != HAL_OK)
+		return 0;
+
+	if(int_source & 0x40)
+	{
+		uint8_t act;
+		ReadData(dev, ADXL375_ACT_SHOCK_STAT, &act, 1);
+		if(out_act_shock_status) *out_act_shock_status = act;
+		return 1;
+	}
+	return 0;
+}

@@ -57,7 +57,9 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 float y = 0;
-
+float smoothY;
+float alpha;
+float shock;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -319,7 +321,7 @@ int main(void)
     ADXL375 dev;
     int errors = 0;
     errors = ADXL375_Initialise(&dev, &hspi1);
-
+    ADXL375_EnableShockDetection(&dev, 0x07, 25, 10);
 
 	DisplayNumber(SEG_OFF); ////// For_Start
 	for(int i = 0; i < 6; i++) ////// For_debugging_and_error
@@ -339,6 +341,7 @@ int main(void)
 	int ADC_Last=0;
 	int peak;
 	int ADC_MAX = 900;
+
 	DF_Init(50);
 	HAL_Delay(100);
 
@@ -351,12 +354,23 @@ int main(void)
 		status = ADXL375_ReadAcceleration(&dev);
 			  if (status == HAL_OK)
 			  ADXL375_CleanRawValues(&dev);
-			  y = dev.accData[1];
-              float smoothY = 0 ;
-              float alpha = 0.1;
-              smoothY = alpha * dev.accData[1] + (1 - alpha) * smoothY;
-			  DisplayNumber(smoothY);
-			  HAL_Delay(101);
+//			  y = dev.accData[1];
+//               smoothY = 0 ;
+//                alpha = 0.1;
+//              smoothY = alpha * dev.accData[1] + (1 - alpha) * smoothY;
+//			  DisplayNumber(smoothY);
+			  uint8_t shockStat = 0;
+			  if (ADXL375_CheckShock(&dev, &shockStat)) {
+
+			      shock = 1;
+			      HAL_Delay(1000);
+			  }
+			  else
+			  {
+				  shock = 0;
+			  }
+
+//			  HAL_Delay(101);
 		//////Hit_detection_commands
 //		ADC_Now = read_adc();
 //		int diff = ADC_Now - ADC_Last;

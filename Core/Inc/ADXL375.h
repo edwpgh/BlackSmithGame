@@ -99,5 +99,7 @@ void ToggleCSHigh();
 
 void ToggleCSLow();
 
+void ADXL375_EnableShockDetection(ADXL375 *dev, uint8_t axes_mask, uint8_t thresh, uint8_t dur); /////
+_Bool ADXL375_CheckShock(ADXL375 *dev, uint8_t *out_act_shock_status);
 
 #endif /* INC_ADXL375_H_ */
