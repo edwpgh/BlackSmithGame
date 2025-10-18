@@ -26,6 +26,7 @@
 #include "DFPLAYER_MINI.h"
 #include <FLASH_PAGE.h>
 #include "ADXL375.h"
+#include "math.h"
 
 
 /* USER CODE END Includes */
@@ -56,10 +57,13 @@ DMA_HandleTypeDef hdma_tim2_ch1;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-float y = 0;
-float smoothY;
-float alpha;
+uint16_t X,Y,Z = 0;
+float smoothX, lastX , smoothY, lastY , smoothZ, lastZ;
+int dispX , dispY , dispZ, topz;
+uint32_t peak = 0;
+float alphaX ,  alphaY ,  alphaZ ;
 float shock;
+uint32_t shock_det_tick;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -322,6 +326,8 @@ int main(void)
     int errors = 0;
     errors = ADXL375_Initialise(&dev, &hspi1);
     ADXL375_EnableShockDetection(&dev, 0x07, 25, 10);
+    WriteData(&dev, ADXL375_FIFO_CTL, 0x80 | 0x1F, 0);
+//    WriteData(&dev, ADXL375_OFFSET_X, 0xFF, 0);
 
 	DisplayNumber(SEG_OFF); ////// For_Start
 	for(int i = 0; i < 6; i++) ////// For_debugging_and_error
@@ -339,7 +345,6 @@ int main(void)
 	int THRESHOLD = 100;
 	int ADC_Now=0;
 	int ADC_Last=0;
-	int peak;
 	int ADC_MAX = 900;
 
 	DF_Init(50);
@@ -348,27 +353,60 @@ int main(void)
 	// Just for starting bug
 	ADC_Last = read_adc();
 
+	lastX = 0;
+	lastZ = 0;
+	lastY = 0;
+
+	HAL_InitTick(0);
+
 	while (1)
 	{
-		HAL_StatusTypeDef status;
-		status = ADXL375_ReadAcceleration(&dev);
-			  if (status == HAL_OK)
-			  ADXL375_CleanRawValues(&dev);
-//			  y = dev.accData[1];
-//               smoothY = 0 ;
-//                alpha = 0.1;
-//              smoothY = alpha * dev.accData[1] + (1 - alpha) * smoothY;
-//			  DisplayNumber(smoothY);
-			  uint8_t shockStat = 0;
-			  if (ADXL375_CheckShock(&dev, &shockStat)) {
+//		HAL_StatusTypeDef status;
+//		status = ADXL375_ReadAcceleration(&dev);
+//		if (status == HAL_OK)
+//			ADXL375_CleanRawValues(&dev);
 
-			      shock = 1;
-			      HAL_Delay(1000);
-			  }
-			  else
-			  {
-				  shock = 0;
-			  }
+
+//		alphaX = 0.1;
+//		smoothX = alphaX * dev.accData[0] + (1 - alphaX) * lastX;
+//		lastX = smoothX;
+//		dispX = (int) smoothX;
+//		/////
+//		alphaY = 0.1;
+//		smoothY = alphaY * dev.accData[1] + (1 - alphaY) * lastY;
+//		lastY = smoothY;
+//		dispY = (int) smoothY ;
+//		///////
+//		alphaZ = 0.1;
+//		smoothZ = alphaZ * dev.accData[2] + (1 - alphaZ) * lastZ;
+//		lastZ = smoothZ;
+//		dispZ = (int) smoothZ + 100 ;
+		//			  DisplayNumber(smoothY);
+
+		// Read Data Continuously .............................................
+		peak = ADXL375_Read_peak_from_100(&dev);
+
+		// Check Shock ........................................................
+		uint8_t shockStat = 0;
+		if (ADXL375_CheckShock(&dev, &shockStat))
+		{
+			shock = 1;
+			shock_det_tick = HAL_GetTick();
+		}
+		else
+		{
+			if(HAL_GetTick() - shock_det_tick > 5000)
+				shock = 0;
+		}
+
+		// Prepare peak data ..................................................
+		if(shock == 1)
+		{
+			if(topz < peak)
+				topz = peak;
+		}
+		else
+			topz = 0;
 
 //			  HAL_Delay(101);
 		//////Hit_detection_commands
@@ -402,7 +440,7 @@ int main(void)
 		//HAL_UART_Transmit(&huart2,(uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 		//HAL_Delay(500);
 
-
+		HAL_Delay(10);
 
     /* USER CODE END WHILE */
 

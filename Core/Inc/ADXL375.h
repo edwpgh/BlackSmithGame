@@ -101,5 +101,7 @@ void ToggleCSLow();
 
 void ADXL375_EnableShockDetection(ADXL375 *dev, uint8_t axes_mask, uint8_t thresh, uint8_t dur); /////
 _Bool ADXL375_CheckShock(ADXL375 *dev, uint8_t *out_act_shock_status);
+//HAL_StatusTypeDef ADXL375_ReadFIFO(ADXL375 *dev, int16_t *XF, int16_t *YF, int16_t *ZF, int16_t nF);
+uint32_t ADXL375_Read_peak_from_100(ADXL375 *dev);
 
 #endif /* INC_ADXL375_H_ */

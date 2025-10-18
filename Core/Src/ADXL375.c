@@ -69,7 +69,7 @@ void ADXL375_CleanRawValues(ADXL375 *dev)
 		val = -((~val & 0xFFFF) + 1);
 	}
 
-	dev->accData[0] = (float)val * 49.0f;
+	dev->accData[0] = (float)val * 0.049f;
 
 	/* CONVERSION FOR ACC_Y */
 	val = dev->rawAccData[3];
@@ -77,7 +77,7 @@ void ADXL375_CleanRawValues(ADXL375 *dev)
 	if (val & 0x8000) {
 		val = -((~val & 0xFFFF) + 1);
 	}
-	dev->accData[1] = (float)val * 49.0f;
+	dev->accData[1] = (float)val * 0.049f ;
 
 	/* CONVERSION FOR ACC_Z */
 	val = dev->rawAccData[5];
@@ -85,7 +85,7 @@ void ADXL375_CleanRawValues(ADXL375 *dev)
 	if (val & 0x8000) {
 		val = -((~val & 0xFFFF) + 1);
 	}
-	dev->accData[2] = (float)val * 49.0f;
+	dev->accData[2] = (float)val * 0.049f ;
 }
 
 
@@ -146,6 +146,39 @@ void ADXL375_EnableShockDetection(ADXL375 *dev, uint8_t axes_mask, uint8_t thres
 		WriteData(dev, ADXL375_INT_ENABLE, 0x40, 1);
 }
 
+/////////////// FIFO_ENABLE
+void ADXL375_EnableFIFO (ADXL375 *dev , uint8_t mode , uint8_t sampels )
+{
+	uint8_t FIFO_CTL = (mode << 6) | (sampels & 0x1F);
+	WriteData(dev , ADXL375_FIFO_CTL , FIFO_CTL ,1 );
+
+}
+uint32_t ADXL375_Read_peak_from_100(ADXL375 *dev)
+{
+	HAL_StatusTypeDef status;
+	uint32_t peak = 0, val = 0;
+
+	ADXL375_CleanRawValues(&dev);
+
+	for(uint8_t i=0; i<100; i++)
+	{
+		uint8_t FIFOraw[6];
+		status = ReadData(dev, ADXL375_DATAX0, FIFOraw, 6);
+		if(status != HAL_OK) return status;
+
+		int16_t X = (int16_t)((FIFOraw[1] << 8)|FIFOraw[0]);
+		int16_t Y = (int16_t)((FIFOraw[3] << 8)|FIFOraw[2]);
+		int16_t Z = (int16_t)((FIFOraw[5] << 8)|FIFOraw[4]);
+
+		val = abs((int32_t)X) + abs((int32_t)Y) + abs((int32_t)Z);
+		if(val > peak)
+			peak = val;
+	}
+
+	return peak;
+}
+
+
 _Bool ADXL375_CheckShock(ADXL375 *dev, uint8_t *out_act_shock_status)
 {
 	uint8_t int_source;
@@ -159,5 +192,6 @@ _Bool ADXL375_CheckShock(ADXL375 *dev, uint8_t *out_act_shock_status)
 		if(out_act_shock_status) *out_act_shock_status = act;
 		return 1;
 	}
+
 	return 0;
 }
