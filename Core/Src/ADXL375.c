@@ -44,6 +44,9 @@ int ADXL375_Initialise(ADXL375 *dev, SPI_HandleTypeDef *spiHandle)
 	if (status != HAL_OK)
 		errorNum++;
 
+	uint8_t fifo_ctl = (0b10 << 6) | 0x1F; // Trigger mode + samples=31
+	WriteData(dev, ADXL375_FIFO_CTL, &fifo_ctl, 1);
+
 	return errorNum;
 }
 
@@ -149,7 +152,7 @@ void ADXL375_EnableShockDetection(ADXL375 *dev, uint8_t axes_mask, uint8_t thres
 /////////////// FIFO_ENABLE
 void ADXL375_EnableFIFO (ADXL375 *dev , uint8_t mode , uint8_t sampels )
 {
-	uint8_t FIFO_CTL = (mode << 6) | (sampels & 0x1F);
+	uint8_t FIFO_CTL = (mode << 6) | (sampels & 0x01);
 	WriteData(dev , ADXL375_FIFO_CTL , FIFO_CTL ,1 );
 
 }
@@ -158,7 +161,7 @@ uint32_t ADXL375_Read_peak_from_100(ADXL375 *dev)
 	HAL_StatusTypeDef status;
 	uint32_t peak = 0, val = 0;
 
-	ADXL375_CleanRawValues(&dev);
+//	ADXL375_CleanRawValues(dev);
 
 	for(uint8_t i=0; i<100; i++)
 	{
@@ -176,6 +179,38 @@ uint32_t ADXL375_Read_peak_from_100(ADXL375 *dev)
 	}
 
 	return peak;
+}
+
+
+uint32_t ADXL375_GetPeakFromFIFO(ADXL375 *dev)
+{
+    uint8_t samples;
+    HAL_StatusTypeDef status;
+    uint32_t peak = 0, val = 0;
+
+    // بخون چندتا نمونه واقعا تو FIFO هست
+    status = ReadData(dev, ADXL375_FIFO_STATUS, &samples, 1);
+    if(status != HAL_OK) return status;
+
+    uint8_t nF = samples & 0x3F; // bits[5:0] = sample count
+//    if(nF == 0) return HAL_OK;
+
+    for(uint8_t i = 0; i < nF; i++)
+    {
+        uint8_t data[6];
+        status = ReadData(dev, ADXL375_DATAX0, data, 6);
+        if(status != HAL_OK) return status;
+
+        int16_t X = (int16_t)((data[1]<<8)|data[0]);
+        int16_t Y = (int16_t)((data[3]<<8)|data[2]);
+        int16_t Z = (int16_t)((data[5]<<8)|data[4]);
+
+        val =  abs((int32_t)X) + abs((int32_t)Y) + abs((int32_t)Z);
+        if(val > peak)
+        	peak = val;
+    }
+
+    return peak;
 }
 
 

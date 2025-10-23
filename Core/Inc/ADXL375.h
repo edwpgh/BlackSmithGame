@@ -69,7 +69,7 @@ typedef struct {
 	uint8_t rawAccData[6];
 
 	/* Cleaned Up Acceleration Data [X, Y, Z] */
-	float accData[3];
+	int32_t accData[3];
 
 } ADXL375;
 
@@ -103,5 +103,6 @@ void ADXL375_EnableShockDetection(ADXL375 *dev, uint8_t axes_mask, uint8_t thres
 _Bool ADXL375_CheckShock(ADXL375 *dev, uint8_t *out_act_shock_status);
 //HAL_StatusTypeDef ADXL375_ReadFIFO(ADXL375 *dev, int16_t *XF, int16_t *YF, int16_t *ZF, int16_t nF);
 uint32_t ADXL375_Read_peak_from_100(ADXL375 *dev);
+uint32_t ADXL375_GetPeakFromFIFO(ADXL375 *dev);
 
 #endif /* INC_ADXL375_H_ */
