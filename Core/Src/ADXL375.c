@@ -44,8 +44,18 @@ int ADXL375_Initialise(ADXL375 *dev, SPI_HandleTypeDef *spiHandle)
 	if (status != HAL_OK)
 		errorNum++;
 
-	uint8_t fifo_ctl = (0b10 << 6) | 0x1F; // Trigger mode + samples=31
-	WriteData(dev, ADXL375_FIFO_CTL, &fifo_ctl, 1);
+//	uint8_t fifo_ctl = (0b10 << 6) | 0x1F; // Trigger mode + samples=31
+//	WriteData(dev, ADXL375_FIFO_CTL, &fifo_ctl, 1);
+
+	// Configure DataFormat Register to indicate +-200g ...
+	status = WriteData(dev, ADXL375_DATA_FORMAT, 0x0B, 1);
+	if (status != HAL_OK)
+		errorNum++;
+
+	// Configure FIFO_CTL register to stream mode
+	status = WriteData(dev, ADXL375_FIFO_CTL, 0x9F, 1);
+	if (status != HAL_OK)
+		errorNum++;
 
 	return errorNum;
 }
@@ -149,13 +159,14 @@ void ADXL375_EnableShockDetection(ADXL375 *dev, uint8_t axes_mask, uint8_t thres
 		WriteData(dev, ADXL375_INT_ENABLE, 0x40, 1);
 }
 
-/////////////// FIFO_ENABLE
-void ADXL375_EnableFIFO (ADXL375 *dev , uint8_t mode , uint8_t sampels )
-{
-	uint8_t FIFO_CTL = (mode << 6) | (sampels & 0x01);
-	WriteData(dev , ADXL375_FIFO_CTL , FIFO_CTL ,1 );
+///////////////// FIFO_ENABLE
+//void ADXL375_EnableFIFO (ADXL375 *dev , uint8_t mode , uint8_t sampels )
+//{
+//	uint8_t FIFO_CTL = (mode << 6) | (sampels & 0x01);
+//	WriteData(dev , ADXL375_FIFO_CTL , FIFO_CTL ,1 );
+//
 
-}
+//}
 uint32_t ADXL375_Read_peak_from_100(ADXL375 *dev)
 {
 	HAL_StatusTypeDef status;
@@ -163,11 +174,23 @@ uint32_t ADXL375_Read_peak_from_100(ADXL375 *dev)
 
 //	ADXL375_CleanRawValues(dev);
 
+	uint8_t txBuffer = (0x32 | 0xC0);
+
+
+
 	for(uint8_t i=0; i<100; i++)
 	{
 		uint8_t FIFOraw[6];
-		status = ReadData(dev, ADXL375_DATAX0, FIFOraw, 6);
-		if(status != HAL_OK) return status;
+//		status = ReadData(dev, ADXL375_DATAX0, FIFOraw, 6);
+
+		ToggleCSLow();
+
+		HAL_SPI_Transmit(dev->spiHandle, &txBuffer, 1, HAL_MAX_DELAY);
+		for(int j = 0; j < 100; j++);
+//		HAL_Delay(3);
+		HAL_SPI_Receive(dev->spiHandle, FIFOraw, 6, HAL_MAX_DELAY);
+
+//		if(status != HAL_OK) return status;
 
 		int16_t X = (int16_t)((FIFOraw[1] << 8)|FIFOraw[0]);
 		int16_t Y = (int16_t)((FIFOraw[3] << 8)|FIFOraw[2]);
@@ -176,11 +199,16 @@ uint32_t ADXL375_Read_peak_from_100(ADXL375 *dev)
 		val = abs((int32_t)X) + abs((int32_t)Y) + abs((int32_t)Z);
 		if(val > peak)
 			peak = val;
+
+		ToggleCSHigh();
 	}
+
+
 
 	return peak;
 }
 
+uint8_t nF = 0;
 
 uint32_t ADXL375_GetPeakFromFIFO(ADXL375 *dev)
 {
@@ -192,7 +220,7 @@ uint32_t ADXL375_GetPeakFromFIFO(ADXL375 *dev)
     status = ReadData(dev, ADXL375_FIFO_STATUS, &samples, 1);
     if(status != HAL_OK) return status;
 
-    uint8_t nF = samples & 0x3F; // bits[5:0] = sample count
+    nF = samples & 0x3F; // bits[5:0] = sample count
 //    if(nF == 0) return HAL_OK;
 
     for(uint8_t i = 0; i < nF; i++)

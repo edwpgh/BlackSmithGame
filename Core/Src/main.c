@@ -60,10 +60,14 @@ UART_HandleTypeDef huart1;
 uint16_t X,Y,Z = 0;
 float smoothX, lastX , smoothY, lastY , smoothZ, lastZ;
 int dispX , dispY , dispZ, topz;
-uint32_t peak = 0;
+uint32_t peak = 0, peakF = 0;
 float alphaX ,  alphaY ,  alphaZ ;
 float shock;
 uint32_t shock_det_tick;
+uint32_t topz_det_tick;
+uint32_t topz_filter;
+uint32_t maped_score;
+uint32_t top_peakF = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -384,30 +388,48 @@ int main(void)
 		//			  DisplayNumber(smoothY);
 
 		// Read Data Continuously .............................................
-		peak = ADXL375_Read_peak_from_100(&dev);
+		peakF = ADXL375_Read_peak_from_100(&dev);
 
+//		peakF = ADXL375_GetPeakFromFIFO(&dev);
+
+		if(peakF > top_peakF)
+		{
+			top_peakF = peakF;
+			maped_score = 1 + (top_peakF - 1) * 999 / 12999;
+		}
+
+//		// Get Peak From FIFO .................................................
+//		peakF = ADXL375_GetPeakFromFIFO(&dev);
+//
 		// Check Shock ........................................................
-		uint8_t shockStat = 0;
-		if (ADXL375_CheckShock(&dev, &shockStat))
-		{
-			shock = 1;
-			shock_det_tick = HAL_GetTick();
-		}
-		else
-		{
-			if(HAL_GetTick() - shock_det_tick > 5000)
-				shock = 0;
-		}
+//		uint8_t shockStat = 0;
+//		if (ADXL375_CheckShock(&dev, &shockStat))
+//		{
+//			shock = 1;
+//			shock_det_tick = HAL_GetTick();
+//		}
+//		else
+//		{
+//			if(HAL_GetTick() - shock_det_tick > 3000)
+//			{
+//				shock = 0;
+//			}
+//		}
 
-		// Prepare peak data ..................................................
-		if(shock == 1)
-		{
-			if(topz < peak)
-				topz = peak;
-		}
-		else
-			topz = 0;
+//		// Prepare peak data ..................................................
+//		if(shock == 1)
+//		{
+//			if(topz < peak)
+//				topz = peak;
+//		}
+//		else
+//		{
+//			if(HAL_GetTick() - topz_det_tick > 3000)
+//				topz = 0;
+//		}
 
+//		if(topz > 10000) topz = 10000;   // safety
+//		topz_filter = (topz * 1000) / 10000;
 //			  HAL_Delay(101);
 		//////Hit_detection_commands
 //		ADC_Now = read_adc();
@@ -440,7 +462,7 @@ int main(void)
 		//HAL_UART_Transmit(&huart2,(uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 		//HAL_Delay(500);
 
-		HAL_Delay(10);
+//		HAL_Delay(10);
 
     /* USER CODE END WHILE */
 
@@ -565,7 +587,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
   hspi1.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
