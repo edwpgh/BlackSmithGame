@@ -47,8 +47,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc2;
-
 SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim2;
@@ -68,13 +66,14 @@ uint32_t topz_det_tick;
 uint32_t topz_filter;
 uint32_t maped_score;
 uint32_t top_peakF = 0;
+
+int display_val;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
-static void MX_ADC2_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_SPI1_Init(void);
@@ -90,15 +89,6 @@ void DF_Choose(uint8_t);
 /* USER CODE BEGIN 0 */
 #define MAX_LED 100
 #define LED_COUNT 20
-uint16_t read_adc()
-{
-	uint16_t ADC_val;
-	HAL_ADC_Start(&hadc2);
-	while(HAL_ADC_PollForConversion(&hadc2,100) != 0);
-	ADC_val = HAL_ADC_GetValue(&hadc2);
-	HAL_ADC_Stop(&hadc2);
-	return ADC_val;
-}
 
 // Variables ...........................................
 uint8_t LED_Data[MAX_LED][4];
@@ -244,17 +234,19 @@ void show_effect_countup_blocking(int target) {
 }
 
 void blink_on_target(uint32_t target) {
-	Flash_Read_Data (0x08007000, &tops , 1 );/// Records_save
-	if( tops < target)
+//	Flash_Read_Data (0x08007000, &tops , 1 );/// Records_save
+	if( target > 900)
 	{
 		DF_Choose(1);
-		Flash_Write_Data (0x08007000,&target, 1);
+//		Flash_Write_Data (0x08007000,&target, 1);
 	}
 	else
 	{
 		DF_Choose(2);
 	}
-	for (int i = 0; i < 3; i++) {
+
+	for (int i = 0; i < 2; i++)
+	{
 		DisplayNumber(target);
 		HAL_Delay(500);
 		DisplayNumber(SEG_OFF);
@@ -263,9 +255,8 @@ void blink_on_target(uint32_t target) {
 		HAL_Delay(500);
 		DisplayNumber(SEG_OFF);
 		HAL_Delay(500);
-
-
 	}
+
 	DisplayNumber(target);
 
 }
@@ -320,7 +311,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_ADC2_Init();
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   MX_SPI1_Init();
@@ -346,7 +336,7 @@ int main(void)
 	dig2 = 0x01;
 	dig1 = 0x00;
 	dig0 = 0x00;
-	int THRESHOLD = 100;
+	int THRESHOLD = 2000;
 	int ADC_Now=0;
 	int ADC_Last=0;
 	int ADC_MAX = 900;
@@ -355,7 +345,7 @@ int main(void)
 	HAL_Delay(100);
 
 	// Just for starting bug
-	ADC_Last = read_adc();
+//	ADC_Last = read_adc();
 
 	lastX = 0;
 	lastZ = 0;
@@ -363,112 +353,41 @@ int main(void)
 
 	HAL_InitTick(0);
 
+	int peak_now=0;
+	int peak_last=0;
+	int peak_max=999;
+
 	while (1)
 	{
-//		HAL_StatusTypeDef status;
-//		status = ADXL375_ReadAcceleration(&dev);
-//		if (status == HAL_OK)
-//			ADXL375_CleanRawValues(&dev);
-
-
-//		alphaX = 0.1;
-//		smoothX = alphaX * dev.accData[0] + (1 - alphaX) * lastX;
-//		lastX = smoothX;
-//		dispX = (int) smoothX;
-//		/////
-//		alphaY = 0.1;
-//		smoothY = alphaY * dev.accData[1] + (1 - alphaY) * lastY;
-//		lastY = smoothY;
-//		dispY = (int) smoothY ;
-//		///////
-//		alphaZ = 0.1;
-//		smoothZ = alphaZ * dev.accData[2] + (1 - alphaZ) * lastZ;
-//		lastZ = smoothZ;
-//		dispZ = (int) smoothZ + 100 ;
-		//			  DisplayNumber(smoothY);
 
 		// Read Data Continuously .............................................
 		peakF = ADXL375_Read_peak_from_100(&dev);
 
-//		peakF = ADXL375_GetPeakFromFIFO(&dev);
+		int diff = peakF - peak_last;
 
-		if(peakF > top_peakF)
+		if (diff > THRESHOLD)
 		{
-			top_peakF = peakF;
-			maped_score = 1 + (top_peakF - 1) * 999 / 12999;
+
+			peakF = diff;
+
+			display_val = 1 + (peakF * 999) / 15000;
+			if (display_val > 999) display_val = 999;
+
+
+			show_effect_countup_blocking(display_val); //
+			blink_on_target(display_val);
+
 		}
+		peak_last = peak_now;
 
-//		// Get Peak From FIFO .................................................
-//		peakF = ADXL375_GetPeakFromFIFO(&dev);
-//
-		// Check Shock ........................................................
-//		uint8_t shockStat = 0;
-//		if (ADXL375_CheckShock(&dev, &shockStat))
-//		{
-//			shock = 1;
-//			shock_det_tick = HAL_GetTick();
-//		}
-//		else
-//		{
-//			if(HAL_GetTick() - shock_det_tick > 3000)
-//			{
-//				shock = 0;
-//			}
-//		}
-
-//		// Prepare peak data ..................................................
-//		if(shock == 1)
-//		{
-//			if(topz < peak)
-//				topz = peak;
-//		}
-//		else
-//		{
-//			if(HAL_GetTick() - topz_det_tick > 3000)
-//				topz = 0;
-//		}
-
-//		if(topz > 10000) topz = 10000;   // safety
-//		topz_filter = (topz * 1000) / 10000;
-//			  HAL_Delay(101);
-		//////Hit_detection_commands
-//		ADC_Now = read_adc();
-//		int diff = ADC_Now - ADC_Last;
-//
-//		if (diff > THRESHOLD)
-//		{
-//
-//			peak = diff;
-//
-//
-//			int display_val = (peak * 999) / ADC_MAX;
-//			if (display_val > 999) display_val = 999;
-//
-//
-//			show_effect_countup_blocking(display_val); //
-//			blink_on_target(display_val);
-//
-//		}
-//		ADC_Last = ADC_Now;
-//		HAL_ADC_Stop(&hadc2);
-//		HAL_Delay(1);
-//
+		HAL_Delay(1);
 
 
-		//	  num++;
+		/* USER CODE END WHILE */
 
-
-		//sprintf (msg,"ADC: %u\r\n",read_adc());
-		//HAL_UART_Transmit(&huart2,(uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-		//HAL_Delay(500);
-
-//		HAL_Delay(10);
-
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
+		/* USER CODE BEGIN 3 */
 	}
-  /* USER CODE END 3 */
+	/* USER CODE END 3 */
 }
 
 /**
@@ -479,7 +398,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -509,59 +427,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
-  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
-  * @brief ADC2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC2_Init(void)
-{
-
-  /* USER CODE BEGIN ADC2_Init 0 */
-
-  /* USER CODE END ADC2_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC2_Init 1 */
-
-  /* USER CODE END ADC2_Init 1 */
-
-  /** Common config
-  */
-  hadc2.Instance = ADC2;
-  hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc2.Init.ContinuousConvMode = ENABLE;
-  hadc2.Init.DiscontinuousConvMode = DISABLE;
-  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc2.Init.NbrOfConversion = 1;
-  if (HAL_ADC_Init(&hadc2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_9;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC2_Init 2 */
-
-  /* USER CODE END ADC2_Init 2 */
-
 }
 
 /**
