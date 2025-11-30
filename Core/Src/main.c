@@ -68,6 +68,9 @@ uint32_t topz_det_tick;
 uint32_t topz_filter;
 uint32_t maped_score;
 uint32_t top_peakF = 0;
+int display_val = 0;
+
+uint16_t adc_raw_value = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -244,17 +247,17 @@ void show_effect_countup_blocking(int target) {
 }
 
 void blink_on_target(uint32_t target) {
-	Flash_Read_Data (0x08007000, &tops , 1 );/// Records_save
-	if( tops < target)
+//	Flash_Read_Data (0x08007000, &tops , 1 );/// Records_save
+	if(target > 900)
 	{
 		DF_Choose(1);
-		Flash_Write_Data (0x08007000,&target, 1);
+//		Flash_Write_Data (0x08007000,&target, 1);
 	}
 	else
 	{
 		DF_Choose(2);
 	}
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 2; i++) {
 		DisplayNumber(target);
 		HAL_Delay(500);
 		DisplayNumber(SEG_OFF);
@@ -346,7 +349,7 @@ int main(void)
 	dig2 = 0x01;
 	dig1 = 0x00;
 	dig0 = 0x00;
-	int THRESHOLD = 100;
+	int THRESHOLD = 2000;
 	int ADC_Now=0;
 	int ADC_Last=0;
 	int ADC_MAX = 900;
@@ -365,38 +368,23 @@ int main(void)
 
 	while (1)
 	{
-//		HAL_StatusTypeDef status;
-//		status = ADXL375_ReadAcceleration(&dev);
-//		if (status == HAL_OK)
-//			ADXL375_CleanRawValues(&dev);
 
-
-//		alphaX = 0.1;
-//		smoothX = alphaX * dev.accData[0] + (1 - alphaX) * lastX;
-//		lastX = smoothX;
-//		dispX = (int) smoothX;
-//		/////
-//		alphaY = 0.1;
-//		smoothY = alphaY * dev.accData[1] + (1 - alphaY) * lastY;
-//		lastY = smoothY;
-//		dispY = (int) smoothY ;
-//		///////
-//		alphaZ = 0.1;
-//		smoothZ = alphaZ * dev.accData[2] + (1 - alphaZ) * lastZ;
-//		lastZ = smoothZ;
-//		dispZ = (int) smoothZ + 100 ;
-		//			  DisplayNumber(smoothY);
 
 		// Read Data Continuously .............................................
-		peakF = ADXL375_Read_peak_from_100(&dev);
+//		peakF = ADXL375_Read_peak_from_100(&dev);
+////		peakF = ADXL375_GetPeakFromFIFO(&dev);
+//
+//		if(peakF > THRESHOLD)
+//		{
+//			display_val = 1 + (peakF * 999) / 15000;
+//			if(display_val > 999)
+//				display_val = 999;
+//			show_effect_countup_blocking(display_val); //
+//			blink_on_target(display_val);
+//		}
+//		HAL_Delay(1);
 
-//		peakF = ADXL375_GetPeakFromFIFO(&dev);
-
-		if(peakF > top_peakF)
-		{
-			top_peakF = peakF;
-			maped_score = 1 + (top_peakF - 1) * 999 / 12999;
-		}
+		adc_raw_value = read_adc();
 
 //		// Get Peak From FIFO .................................................
 //		peakF = ADXL375_GetPeakFromFIFO(&dev);
