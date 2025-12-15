@@ -248,7 +248,7 @@ void show_effect_countup_blocking(int target) {
 
 void blink_on_target(uint32_t target) {
 //	Flash_Read_Data (0x08007000, &tops , 1 );/// Records_save
-	if(target > 900)
+	if(target > 800)
 	{
 		DF_Choose(1);
 //		Flash_Write_Data (0x08007000,&target, 1);
@@ -271,6 +271,10 @@ void blink_on_target(uint32_t target) {
 	}
 	DisplayNumber(target);
 
+	for(int i = 0; i < MAX_LED; i++)
+		Set_LED(i, 0, 0, 0);
+	WS2812_Send();
+
 }
 ////////////////////////////////////END_the_7seg_effects_And_Records_functions//////////////////////////////////////////
 ///////////////////////////////////START_ws2811_effect_functions/////////////////////////////////////////
@@ -281,11 +285,11 @@ void Update_LEDs(int score)
 	if (leds_to_light > LED_COUNT) leds_to_light = LED_COUNT;
 
 
-	for (int i = 0; i < LED_COUNT; i++) {
+	for (int i = 0; i < LED_COUNT + 20; i++) {
 		Set_LED(i, 0, 0, 0);
 	}
 
-	for (int i = 0; i < leds_to_light; i++) {
+	for (int i = 18; i < leds_to_light + 20; i++) {
 		Set_LED(i, 255, 0, 125);
 	}
 
@@ -349,7 +353,7 @@ int main(void)
 	dig2 = 0x01;
 	dig1 = 0x00;
 	dig0 = 0x00;
-	int THRESHOLD = 2000;
+	int THRESHOLD = 1500;
 	int ADC_Now=0;
 	int ADC_Last=0;
 	int ADC_MAX = 900;
@@ -363,7 +367,7 @@ int main(void)
 	lastX = 0;
 	lastZ = 0;
 	lastY = 0;
-
+	static uint8_t HitConfirm;
 	HAL_InitTick(0);
 
 	while (1)
@@ -371,20 +375,35 @@ int main(void)
 
 
 		// Read Data Continuously .............................................
-//		peakF = ADXL375_Read_peak_from_100(&dev);
-////		peakF = ADXL375_GetPeakFromFIFO(&dev);
-//
-//		if(peakF > THRESHOLD)
-//		{
-//			display_val = 1 + (peakF * 999) / 15000;
-//			if(display_val > 999)
-//				display_val = 999;
-//			show_effect_countup_blocking(display_val); //
-//			blink_on_target(display_val);
-//		}
-//		HAL_Delay(1);
+		peakF = ADXL375_Read_peak_from_100(&dev);
+//		peakF = ADXL375_GetPeakFromFIFO(&dev);
 
-		adc_raw_value = read_adc();
+		if(peakF > THRESHOLD)
+		{
+			HitConfirm++;
+		}
+		else
+		{
+			HitConfirm = 0;
+		}
+		if(HitConfirm >= 2)
+		{
+			adc_raw_value = read_adc();
+
+			int adc_factor = (adc_raw_value * 200) / 1800;
+			if(peakF > 5000)
+				peakF = peakF * 1.3;
+			else if(peakF > 3000)
+				peakF = peakF * 1.1;
+			int adxl_factor = (peakF * 800) / 12000;
+
+			display_val = adc_factor + adxl_factor;
+			if(display_val > 999)
+				display_val = 999;
+			show_effect_countup_blocking(display_val); //
+			blink_on_target(display_val);
+		}
+		HAL_Delay(1);
 
 //		// Get Peak From FIFO .................................................
 //		peakF = ADXL375_GetPeakFromFIFO(&dev);
